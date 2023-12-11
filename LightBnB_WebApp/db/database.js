@@ -17,7 +17,7 @@ const users = require("./json/users.json");
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithEmail = function(email) {
-  pool.query(
+  return pool.query(
     `
       SELECT * 
       FROM users
@@ -25,7 +25,6 @@ const getUserWithEmail = function(email) {
     `,
     [email]
   ).then(result => {
-    console.log(result.rows);
     if (result.rowCount === null) {
       return null;
     } else {
@@ -42,7 +41,7 @@ const getUserWithEmail = function(email) {
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function(id) {
-  pool.query(
+  return pool.query(
     `
       SELECT *
       FROM users
@@ -50,8 +49,7 @@ const getUserWithId = function(id) {
     `,
     [id]
   ).then(result => {
-    console.log(result.rows);
-    return result.rows;
+    return result.rows[0];
   }).catch((err) => {
     console.error(err.message);
   });
@@ -89,7 +87,24 @@ const addUser = function(user) {
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  return pool.query(
+    `
+    SELECT r.id AS id, p.title AS title, r.start_date AS start_date, 
+        p.cost_per_night AS cost_per_night, avg(pr.rating) AS average_raing
+    FROM reservations AS r
+    INNER JOIN properties AS p ON p.id = r.property_id
+    INNER JOIN property_reviews AS pr ON p.id = pr.property_id
+    WHERE pr.guest_id = $1
+    GROUP BY r.id, p.id
+    ORDER BY r.start_date
+    LIMIT $2;
+    `,
+    [guest_id, limit]
+  ).then(result => {
+    return result.rows;
+  }).catch((err) => {
+    console.error(err.message);
+  });
 };
 
 /// Properties
@@ -101,13 +116,12 @@ const getAllReservations = function(guest_id, limit = 10) {
  * @return {Promise<[{}]>}  A promise to the properties.
  */
 const getAllProperties = function(options, limit = 10) {
-  pool.query(
+  return pool.query(
     `
     SELECT * FROM properties LIMIT $1;
     `,
     [limit]
   ).then(result => {
-    console.log(result.rows);
     return result.rows;
   })
     .catch((err) => {
